@@ -4,7 +4,8 @@
             "name": "Pico",
             "includePath": [
                 "${workspaceFolder}/**",
-                "${userHome}/.pico-sdk/sdk/2.1.0/**"
+                "${userHome}/.pico-sdk/sdk/2.1.0/**",
+                "${workspaceFolder}/Inc/ssd1306.c"
             ],
             "forcedInclude": [
                 "${userHome}/.pico-sdk/sdk/2.1.0/src/common/pico_base_headers/include/pico.h",
@@ -13,9 +14,9 @@
             "defines": [],
             "compilerPath": "${userHome}/.pico-sdk/toolchain/13_3_Rel1/bin/arm-none-eabi-gcc.exe",
             "compileCommands": "${workspaceFolder}/build/compile_commands.json",
-            "cStandard": "c17",
+            "cStandard": "c11",
             "cppStandard": "c++14",
-            "intelliSenseMode": "linux-gcc-arm"
+            "intelliSenseMode": "gcc-x64"
         }
     ],
     "version": 4
