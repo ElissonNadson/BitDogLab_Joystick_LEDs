@@ -13,22 +13,22 @@
     {
       "type": "wokwi-resistor",
       "id": "r1",
-      "top": 71.15,
+      "top": 80.75,
       "left": -86.4,
       "attrs": { "value": "1000" }
     },
     {
       "type": "wokwi-resistor",
       "id": "r2",
-      "top": 80.75,
+      "top": 71.15,
       "left": -172.8,
       "attrs": { "value": "1000" }
     },
     {
       "type": "wokwi-resistor",
       "id": "r3",
-      "top": 90.35,
-      "left": -115.2,
+      "top": 51.95,
+      "left": -220.8,
       "attrs": { "value": "1000" }
     },
     {
@@ -103,11 +103,9 @@
     [ "pico:GP1", "$serialMonitor:TX", "", [] ],
     [ "rgb1:COM", "pico:GND.4", "black", [ "h28.4", "v28.66" ] ],
     [ "rgb1:R", "r1:1", "red", [ "h48", "v-9.6", "h172.8" ] ],
-    [ "r1:2", "pico:GP11", "red", [] ],
     [ "rgb1:G", "r2:1", "green", [ "v-1.3", "h57.6", "v19.2" ] ],
-    [ "r2:2", "pico:GP12", "green", [ "h46.8", "v-0.04" ] ],
     [ "rgb1:B", "r3:1", "blue", [ "h1.6", "v-1.6", "h94.4", "v38.4" ] ],
-    [ "r3:2", "pico:GP13", "blue", [] ],
+    [ "r3:2", "pico:GP13", "blue", [ "h152.4", "v38.36" ] ],
     [ "pico:3V3", "joystick1:VCC", "magenta", [ "h48.31", "v220.8", "h38.4" ] ],
     [ "joystick1:GND", "pico:GND.5", "black", [ "v48", "h-115.2", "v-134.44" ] ],
     [ "joystick1:SEL", "pico:GP22", "gray", [ "v38.4", "h-96", "v-182.4" ] ],
@@ -118,7 +116,9 @@
     [ "oled1:GND", "gnd1:GND", "black", [ "v-28.8", "h-144" ] ],
     [ "btn1:1.r", "pico:GND.1", "black", [ "h9.8", "v-9.6", "h28.8" ] ],
     [ "btn1:2.r", "pico:GP5", "red", [ "v0.2", "h9.8", "v9.6" ] ],
-    [ "vcc2:VCC", "oled1:VCC", "red", [ "v19.2", "h124.65" ] ]
+    [ "vcc2:VCC", "oled1:VCC", "red", [ "v19.2", "h124.65" ] ],
+    [ "r2:2", "pico:GP11", "green", [ "v0" ] ],
+    [ "r1:2", "pico:GP12", "red", [ "v0" ] ]
   ],
   "dependencies": {}
 }
