@@ -94,8 +94,6 @@ void ssd1306_fill(ssd1306_t *ssd, bool value) {
     }
 }
 
-
-
 void ssd1306_rect(ssd1306_t *ssd, uint8_t top, uint8_t left, uint8_t width, uint8_t height, bool value, bool fill) {
   for (uint8_t x = left; x < left + width; ++x) {
     ssd1306_pixel(ssd, x, top, value);
@@ -142,7 +140,6 @@ void ssd1306_line(ssd1306_t *ssd, uint8_t x0, uint8_t y0, uint8_t x1, uint8_t y1
         }
     }
 }
-
 
 void ssd1306_hline(ssd1306_t *ssd, uint8_t x0, uint8_t x1, uint8_t y, bool value) {
   for (uint8_t x = x0; x <= x1; ++x)
@@ -198,4 +195,39 @@ void ssd1306_draw_string(ssd1306_t *ssd, const char *str, uint8_t x, uint8_t y)
       break;
     }
   }
+}
+
+void ssd1306_text(ssd1306_t *ssd, const char *text, uint8_t x, uint8_t y, bool value) {
+    while (*text) {
+        ssd1306_draw_char(ssd, *text++, x, y);
+        x += 8;
+        if (x + 8 >= ssd->width) {
+            x = 0;
+            y += 8;
+        }
+        if (y + 8 >= ssd->height) {
+            break;
+        }
+    }
+}
+
+void ssd1306_show_mode(ssd1306_t *ssd, const char *mode) {
+    ssd1306_fill(ssd, false); // Limpa o display
+    ssd1306_draw_string(ssd, mode, 0, 0); // Desenha a mensagem no display
+    ssd1306_send_data(ssd); // Envia os dados para o display
+}
+
+void ssd1306_show_humidity(ssd1306_t *ssd, uint8_t humidity) {
+    char buffer[16];
+    snprintf(buffer, sizeof(buffer), "Umidade: %d%%", humidity);
+    ssd1306_fill(ssd, false); // Limpa o display
+    ssd1306_draw_string(ssd, buffer, 0, 0); // Desenha a umidade no display
+    ssd1306_send_data(ssd); // Envia os dados para o display
+}
+
+void ssd1306_show_status(ssd1306_t *ssd, const char *status, const char *mode) {
+    ssd1306_fill(ssd, false); // Limpa o display
+    ssd1306_draw_string(ssd, status, 0, 0); // Desenha o status no display
+    ssd1306_draw_string(ssd, mode, 0, 8); // Desenha o modo no display
+    ssd1306_send_data(ssd); // Envia os dados para o display
 }

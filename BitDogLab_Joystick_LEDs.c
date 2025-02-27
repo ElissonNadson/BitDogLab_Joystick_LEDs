@@ -15,15 +15,15 @@
 // =============================================================================
 // DEFINIÇÕES DOS PINOS
 // =============================================================================
-#define LED_VERDE       11
-#define LED_AZUL        12
-#define LED_VERMELHO    13
+#define LED_VERDE       11  // Umidade ideal
+#define LED_AZUL        12  // Umidade baixa
+#define LED_VERMELHO    13  // Umidade alta
 
-#define BOTAO_A         5
-#define BOTAO_JOYSTICK  22   
+#define BOTAO_A         5   // Liga/desliga o sistema
+#define BOTAO_JOYSTICK  22  // Alterna entre modos de operação
 
-#define JOYSTICK_X      26
-#define JOYSTICK_Y      27
+#define SENSOR_UMIDADE  26  // Pino ADC para simular leitura de umidade
+#define JOYSTICK_Y      27  // Ajusta a umidade desejada
 
 #define I2C_SDA_PIN     14
 #define I2C_SCL_PIN     15
@@ -35,15 +35,15 @@
 #define TAM_QUADRADO    8
 
 // Constantes para o centro do joystick
-#define CENTRO_X        2006
 #define CENTRO_Y        2101
 
 // =============================================================================
 // VARIÁVEIS GLOBAIS DE CONTROLE
 // =============================================================================
-volatile bool pwm_ativado = true;       // true = ativado, false = desativado
-volatile bool estado_led_verde = false;   // LED verde ligado/desligado
-volatile bool estado_borda = true;        // true = borda desenhada
+volatile bool sistema_ligado = true;       // true = sistema ligado, false = desligado
+volatile bool modo_manual = false;         // true = modo manual, false = automático
+volatile uint16_t umidade_desejada = 50;   // Umidade desejada em porcentagem
+volatile uint16_t umidade_atual = 0;       // Umidade atual simulada
 
 volatile uint32_t tempo_ultimo_botao_A = 0;
 volatile uint32_t tempo_ultimo_botao_joystick = 0;
@@ -67,17 +67,13 @@ bool verificar_debounce(volatile uint32_t *ultimo_tempo) {
 // =============================================================================
 void interrupcao_botao(uint gpio, uint32_t eventos) {
     if (gpio == BOTAO_A && verificar_debounce(&tempo_ultimo_botao_A)) {
-        pwm_ativado = !pwm_ativado;
-        printf("Botão A: PWM %s\n", pwm_ativado ? "ativado" : "desativado");
+        sistema_ligado = !sistema_ligado;
+        printf("Botão A: Sistema %s\n", sistema_ligado ? "ligado" : "desligado");
     }
     
     if (gpio == BOTAO_JOYSTICK && verificar_debounce(&tempo_ultimo_botao_joystick)) {
-        estado_led_verde = !estado_led_verde;
-        gpio_put(LED_VERDE, estado_led_verde);
-        estado_borda = !estado_borda;
-        printf("Botão Joystick: LED Verde %s, Borda %s\n",
-               estado_led_verde ? "ligado" : "desligado",
-               estado_borda ? "desenhada" : "não desenhada");
+        modo_manual = !modo_manual;
+        printf("Botão Joystick: Modo %s\n", modo_manual ? "manual" : "automático");
     }
 }
 
@@ -92,15 +88,29 @@ void configurar_pwm(uint pin) {
 }
 
 // =============================================================================
-// FUNÇÃO PARA MAPEAR O VALOR DO ADC EM INTENSIDADE
+// FUNÇÃO PARA LER A UMIDADE ATUAL (SIMULADA)
 // =============================================================================
-uint16_t intensidade_led(uint16_t valor, uint16_t centro) {
-    if (valor == centro) {
-        return 0;  // Posição central: nenhum brilho
-    } else if (valor < centro) {
-        return centro - valor;
+uint16_t ler_umidade_atual() {
+    adc_select_input(0);   // Lê o pino do sensor de umidade
+    return (adc_read() * 100) / 4095;  // Converte para porcentagem
+}
+
+// =============================================================================
+// FUNÇÃO PARA ATUALIZAR OS LEDs COM BASE NA UMIDADE
+// =============================================================================
+void atualizar_leds(uint16_t umidade_atual, uint16_t umidade_desejada) {
+    if (umidade_atual < umidade_desejada - 10) {
+        gpio_put(LED_AZUL, 1);    // Umidade baixa
+        gpio_put(LED_VERDE, 0);
+        gpio_put(LED_VERMELHO, 0);
+    } else if (umidade_atual > umidade_desejada + 10) {
+        gpio_put(LED_VERMELHO, 1); // Umidade alta
+        gpio_put(LED_VERDE, 0);
+        gpio_put(LED_AZUL, 0);
     } else {
-        return valor - centro;
+        gpio_put(LED_VERDE, 1);   // Umidade ideal
+        gpio_put(LED_AZUL, 0);
+        gpio_put(LED_VERMELHO, 0);
     }
 }
 
@@ -110,27 +120,26 @@ uint16_t intensidade_led(uint16_t valor, uint16_t centro) {
 int main() {
     // Inicialização do sistema e UART
     stdio_init_all();
-    printf("Iniciando sistema...\n");
+    printf("Iniciando sistema de irrigação...\n");
 
     // -------------------------------------------------------------------------
-    // Inicialização do ADC para o Joystick
+    // Inicialização do ADC para o sensor de umidade e joystick
     // -------------------------------------------------------------------------
-    printf("Ligando ADC para o Joystick...\n");
+    printf("Ligando ADC para o sensor de umidade e joystick...\n");
     adc_init();
-    adc_gpio_init(JOYSTICK_X);
+    adc_gpio_init(SENSOR_UMIDADE);
     adc_gpio_init(JOYSTICK_Y);
 
     // -------------------------------------------------------------------------
-    // Configuração dos LEDs para PWM (LED Vermelho e LED Azul)
+    // Configuração dos LEDs
     // -------------------------------------------------------------------------
-    printf("Ligando LEDs com PWM (Vermelho e Azul)...\n");
-    configurar_pwm(LED_VERMELHO);
-    configurar_pwm(LED_AZUL);
-
-    // LED Verde (controlado digitalmente)
-    printf("Ligando LED Verde (digital)...\n");
+    printf("Configurando LEDs...\n");
     gpio_init(LED_VERDE);
     gpio_set_dir(LED_VERDE, GPIO_OUT);
+    gpio_init(LED_AZUL);
+    gpio_set_dir(LED_AZUL, GPIO_OUT);
+    gpio_init(LED_VERMELHO);
+    gpio_set_dir(LED_VERMELHO, GPIO_OUT);
 
     // -------------------------------------------------------------------------
     // Configuração dos Botões com Interrupções
@@ -160,49 +169,48 @@ int main() {
     ssd1306_send_data(&ssd);
 
     // -------------------------------------------------------------------------
-    // Posição Inicial do Quadrado no Display (Centralizado)
-    // -------------------------------------------------------------------------
-    uint8_t posicao_x = (LARGURA - TAM_QUADRADO) / 2;
-    uint8_t posicao_y = (ALTURA - TAM_QUADRADO) / 2;
-
-    // -------------------------------------------------------------------------
     // Loop Principal do Sistema
     // -------------------------------------------------------------------------
     while (1) {
-        // Leitura dos valores do Joystick (inverte o eixo Y para movimento natural)
-        adc_select_input(1);   // Eixo X
-        uint16_t valor_x = adc_read();
-        adc_select_input(0);   // Eixo Y
-        uint16_t valor_y = adc_read();
+        if (sistema_ligado) {
+            // Leitura da umidade atual (simulada)
+            umidade_atual = ler_umidade_atual();
 
-        // ---------------------------------------------------------------------
-        // Controle dos LEDs PWM: mapeia intensidade conforme o ADC e o centro
-        // ---------------------------------------------------------------------
-        if (pwm_ativado) {
-            uint16_t intensidade_vermelho = intensidade_led(valor_x, CENTRO_X);
-            uint16_t intensidade_azul = intensidade_led(valor_y, CENTRO_Y);
-            pwm_set_gpio_level(LED_VERMELHO, intensidade_vermelho);
-            pwm_set_gpio_level(LED_AZUL, intensidade_azul);
+            // Ajuste da umidade desejada com o joystick
+            adc_select_input(1);   // Eixo Y do joystick
+            uint16_t valor_y = adc_read();
+            umidade_desejada = (valor_y * 100) / 4095;
+
+            // Simulação de aumento da umidade no modo automático
+            if (!modo_manual && umidade_atual < umidade_desejada) {
+                umidade_atual++;
+                sleep_ms(100); // Espera 100 ms antes de aumentar a umidade
+            }
+
+            // Atualização dos LEDs
+            atualizar_leds(umidade_atual, umidade_desejada);
+
+            // Exibição das informações no display
+            char buffer[50];
+            ssd1306_fill(&ssd, false);
+            snprintf(buffer, sizeof(buffer), "Umidade: %d%%", umidade_atual);
+            ssd1306_text(&ssd, buffer, 0, 0, true);
+            snprintf(buffer, sizeof(buffer), "Desejada: %d%%", umidade_desejada);
+            ssd1306_text(&ssd, buffer, 0, 20, true);
+            snprintf(buffer, sizeof(buffer), "Modo: %s", modo_manual ? "Manual" : "Auto");
+            ssd1306_text(&ssd, buffer, 0, 40, true);
+            ssd1306_send_data(&ssd);
         } else {
-            pwm_set_gpio_level(LED_VERMELHO, 0);
-            pwm_set_gpio_level(LED_AZUL, 0);
+            // Sistema desligado: apaga os LEDs e exibe mensagem no display
+            gpio_put(LED_VERDE, 0);
+            gpio_put(LED_AZUL, 0);
+            gpio_put(LED_VERMELHO, 0);
+            ssd1306_fill(&ssd, false);
+            ssd1306_text(&ssd, "Sistema Desligado", 0, 20, true);
+            ssd1306_send_data(&ssd);
         }
 
-        // ---------------------------------------------------------------------
-        // Atualização da Posição do Quadrado no Display
-        // ---------------------------------------------------------------------
-        posicao_x = (valor_x * (LARGURA - TAM_QUADRADO)) / 4095;
-        posicao_y = ((4095 - valor_y) * (ALTURA - TAM_QUADRADO)) / 4095;
-
-        // ---------------------------------------------------------------------
-        // Desenho no Display: limpa, desenha o quadrado e a borda (se aplicável)
-        // ---------------------------------------------------------------------
-        ssd1306_fill(&ssd, false);
-        ssd1306_rect(&ssd, posicao_y, posicao_x, TAM_QUADRADO, TAM_QUADRADO, true, true);
-        ssd1306_rect(&ssd, 0, 0, LARGURA, ALTURA, estado_borda, false);
-        ssd1306_send_data(&ssd);
-
-        sleep_ms(10);
+        sleep_ms(500);  // Atualiza a cada 500ms
     }
     
     return 0;
